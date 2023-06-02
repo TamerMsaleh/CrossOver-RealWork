@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const redis = require("redis");
-const memcached = require("memcached");
 const util = require("util");
 const KEY = `account1/balance`;
 const DEFAULT_BALANCE = 100;
@@ -23,14 +22,32 @@ async function getBalanceRedis(key) {
 async function chargeRedis(key, charges) {
   return decrbyAsync(key, charges);
 }
+
+function authorizeRequest(remainingBalance, charges) {
+    return remainingBalance >= charges;
+}
+function getCharges(serviceType, unit) {
+
+    var voiceCharge = DEFAULT_BALANCE / 20;
+    var dataCharge = DEFAULT_BALANCE / 10;
+
+    if(serviceType == "voice")
+        return voiceCharge * unit;
+    else if(serviceType == "data")
+        return dataCharge * unit;
+}
+
 exports.resetRedis = async function () {
     redisClient.set(KEY, String(DEFAULT_BALANCE));
     return DEFAULT_BALANCE;
 };
 
 exports.chargeRequestRedis = async function (input) {
-     var remainingBalance = await getBalanceRedis(KEY);
-    var charges = getCharges();
+
+     const serviceType = input.serviceType;
+     const unitValue = input.unit;
+    var charges = getCharges(serviceType, unitValue);
+    var remainingBalance = await getBalanceRedis(KEY);
     const isAuthorized = authorizeRequest(remainingBalance, charges);
     if (!isAuthorized) {
         return {
@@ -39,16 +56,11 @@ exports.chargeRequestRedis = async function (input) {
             charges: 0,
         };
     }
-    var ret = await chargeRedis(KEY, charges);
+    var newBalance = await chargeRedis(KEY, charges);
     return {
-        remainingBalance: ret,
+        remainingBalance: newBalance,
         charges,
         isAuthorized,
     };
 };
-function authorizeRequest(remainingBalance, charges) {
-    return remainingBalance >= charges;
-}
-function getCharges() {
-    return DEFAULT_BALANCE / 20;
-}
+
