@@ -38,7 +38,7 @@ function getCharges(serviceType, unit) {
 }
 
 exports.resetRedis = async function () {
-    redisClient.set(KEY, String(DEFAULT_BALANCE));
+    await redisClient.set(KEY, String(DEFAULT_BALANCE));
     return DEFAULT_BALANCE;
 };
 
